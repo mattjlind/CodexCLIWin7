@@ -39,7 +39,14 @@ mod ffi_utils;
     path = "tz_linux.rs"
 )]
 #[cfg_attr(all(target_os = "linux", target_env = "ohos"), path = "tz_ohos.rs")]
-#[cfg_attr(target_os = "windows", path = "tz_windows.rs")]
+#[cfg_attr(
+    all(target_os = "windows", not(target_vendor = "win7")),
+    path = "tz_windows.rs"
+)]
+#[cfg_attr(
+    all(target_os = "windows", target_vendor = "win7"),
+    path = "tz_windows_win7.rs"
+)]
 #[cfg_attr(target_vendor = "apple", path = "tz_darwin.rs")]
 #[cfg_attr(
     all(target_arch = "wasm32", target_os = "unknown"),

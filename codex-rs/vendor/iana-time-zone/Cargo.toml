@@ -86,8 +86,11 @@ version = "0.1.5"
 [target.'cfg(target_os = "haiku")'.dependencies.iana-time-zone-haiku]
 version = "0.1.1"
 
-[target.'cfg(target_os = "windows")'.dependencies.windows-core]
+[target.'cfg(all(target_os = "windows", not(target_vendor = "win7")))'.dependencies.windows-core]
 version = ">=0.56, <=0.62"
+
+[target.'cfg(all(target_os = "windows", target_vendor = "win7"))'.dependencies.jiff]
+version = "0.2.23"
 
 [target.'cfg(target_vendor = "apple")'.dependencies.core-foundation-sys]
 version = "0.8.6"

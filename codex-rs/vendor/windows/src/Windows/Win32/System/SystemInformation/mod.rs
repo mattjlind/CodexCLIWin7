@@ -152,6 +152,7 @@ pub unsafe fn GetSystemTimeAsFileTime() -> super::super::Foundation::FILETIME {
     }
 }
 #[inline]
+#[cfg(not(target_vendor = "win7"))]
 pub unsafe fn GetSystemTimePreciseAsFileTime() -> super::super::Foundation::FILETIME {
     windows_core::link!("kernel32.dll" "system" fn GetSystemTimePreciseAsFileTime(lpsystemtimeasfiletime : *mut super::super::Foundation:: FILETIME));
     unsafe {
@@ -159,6 +160,11 @@ pub unsafe fn GetSystemTimePreciseAsFileTime() -> super::super::Foundation::FILE
         GetSystemTimePreciseAsFileTime(&mut result__);
         result__
     }
+}
+#[inline]
+#[cfg(target_vendor = "win7")]
+pub unsafe fn GetSystemTimePreciseAsFileTime() -> super::super::Foundation::FILETIME {
+    unsafe { GetSystemTimeAsFileTime() }
 }
 #[inline]
 pub unsafe fn GetSystemWindowsDirectoryA(lpbuffer: Option<&mut [u8]>) -> u32 {

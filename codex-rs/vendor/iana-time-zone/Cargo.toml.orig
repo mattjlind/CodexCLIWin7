@@ -25,8 +25,11 @@ android_system_properties = "0.1.5"
 [target.'cfg(target_vendor = "apple")'.dependencies]
 core-foundation-sys = "0.8.6"
 
-[target.'cfg(target_os = "windows")'.dependencies]
+[target.'cfg(all(target_os = "windows", not(target_vendor = "win7")))'.dependencies]
 windows-core = ">=0.56, <=0.62"
+
+[target.'cfg(all(target_os = "windows", target_vendor = "win7"))'.dependencies]
+jiff = "0.2.23"
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 js-sys = "0.3.66"

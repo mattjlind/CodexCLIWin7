@@ -35,6 +35,11 @@ which = { workspace = true }
 codex-otel = { workspace = true }
 codex-utils-home-dir = { workspace = true }
 
+# MXC is backed by Windows 10+ WinRT and cannot even be loader-probed on Win7
+# because its generated bindings have eager combase/WinRT imports.
+[target.'cfg(all(windows, not(target_vendor = "win7")))'.dependencies]
+codex-mxc-sandbox = { workspace = true }
+
 [dev-dependencies]
 anyhow = { workspace = true }
 codex-utils-cargo-bin = { workspace = true }

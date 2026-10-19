@@ -146,6 +146,16 @@ use std::path::PathBuf;
 use std::slice;
 
 use super::windows::Win32::UI::Shell;
+#[cfg(not(target_vendor = "win7"))]
+use super::windows::Win32::System::Com::CoTaskMemFree;
+
+// windows-sys 0.61 names combase.dll as the provider, but Windows 7 exports
+// this long-standing COM allocator function from ole32.dll.
+#[cfg(target_vendor = "win7")]
+#[link(name = "ole32")]
+unsafe extern "system" {
+    fn CoTaskMemFree(pv: *const c_void);
+}
 
 pub fn known_folder(folder_id: windows::core::GUID) -> Option<PathBuf> {
     unsafe {
@@ -160,10 +170,10 @@ pub fn known_folder(folder_id: windows::core::GUID) -> Option<PathBuf> {
             let len = windows::Win32::Globalization::lstrlenW(path_ptr) as usize;
             let path = slice::from_raw_parts(path_ptr, len);
             let ostr: OsString = OsStringExt::from_wide(path);
-            windows::Win32::System::Com::CoTaskMemFree(path_ptr as *const c_void);
+            CoTaskMemFree(path_ptr as *const c_void);
             Some(PathBuf::from(ostr))
         } else {
-            windows::Win32::System::Com::CoTaskMemFree(path_ptr as *const c_void);
+            CoTaskMemFree(path_ptr as *const c_void);
             None
         }
     }

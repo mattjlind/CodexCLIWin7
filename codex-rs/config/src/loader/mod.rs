@@ -58,6 +58,14 @@ use codex_protocol::protocol::AskForApproval;
 use codex_utils_absolute_path::AbsolutePathBuf;
 use codex_utils_absolute_path::AbsolutePathBufGuard;
 use codex_utils_path_uri::PathUri;
+
+// windows-sys 0.61 links CoTaskMemFree through combase.dll. Windows 7 exports
+// this long-standing COM allocator function from ole32.dll instead.
+#[cfg(all(windows, target_vendor = "win7"))]
+#[link(name = "ole32")]
+unsafe extern "system" {
+    fn CoTaskMemFree(pv: *const core::ffi::c_void);
+}
 use dunce::canonicalize as normalize_path;
 use serde::Deserialize;
 use std::io;
@@ -828,6 +836,7 @@ fn windows_system_config_toml_file() -> io::Result<AbsolutePathBuf> {
 fn windows_program_data_dir_from_known_folder() -> io::Result<PathBuf> {
     use std::ffi::OsString;
     use std::os::windows::ffi::OsStringExt;
+    #[cfg(not(target_vendor = "win7"))]
     use windows_sys::Win32::System::Com::CoTaskMemFree;
     use windows_sys::Win32::UI::Shell::FOLDERID_ProgramData;
     use windows_sys::Win32::UI::Shell::KF_FLAG_DEFAULT;

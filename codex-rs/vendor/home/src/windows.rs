@@ -6,8 +6,17 @@ use std::ptr;
 use std::slice;
 
 use windows_sys::Win32::Foundation::S_OK;
+#[cfg(not(target_vendor = "win7"))]
 use windows_sys::Win32::System::Com::CoTaskMemFree;
-use windows_sys::Win32::UI::Shell::{FOLDERID_Profile, KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath};
+use windows_sys::Win32::UI::Shell::{FOLDERID_Profile, SHGetKnownFolderPath, KF_FLAG_DONT_VERIFY};
+
+// windows-sys 0.61 names combase.dll as the provider, but Windows 7 exports
+// this long-standing COM allocator function from ole32.dll.
+#[cfg(target_vendor = "win7")]
+#[link(name = "ole32")]
+unsafe extern "system" {
+    fn CoTaskMemFree(pv: *const core::ffi::c_void);
+}
 
 pub fn home_dir_inner() -> Option<PathBuf> {
     env::var_os("USERPROFILE")

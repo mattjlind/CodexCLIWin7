@@ -317,7 +317,7 @@ impl SandboxManager {
         windows_sandbox_type: SandboxType,
         has_managed_network_requirements: bool,
     ) -> SandboxType {
-        #[cfg(windows)]
+        #[cfg(all(windows, not(target_vendor = "win7")))]
         crate::windows_mxc::record_availability_once();
 
         if !self.should_sandbox(permission_profile, pref, has_managed_network_requirements) {

@@ -1,12 +1,12 @@
 //! Native Windows MXC helper. Policy conversion is portable; execution requires
 //! a usable process security environment and never enters MXC's ACL fallbacks.
 
-#[cfg(windows)]
+#[cfg(all(windows, not(target_vendor = "win7")))]
 mod native;
-#[cfg(any(windows, test))]
+#[cfg(all(any(windows, test), not(target_vendor = "win7")))]
 mod policy;
 mod transport;
-#[cfg(windows)]
+#[cfg(all(windows, not(target_vendor = "win7")))]
 mod windows;
 
 use std::collections::HashMap;
@@ -95,22 +95,22 @@ pub fn create_command_args(args: CreateMxcCommandArgsParams<'_>) -> Result<Vec<S
 /// Whether the executor can create a native MXC process security environment.
 /// This deliberately excludes MXC's older AppContainer fallback backends.
 pub fn is_available() -> bool {
-    #[cfg(windows)]
+    #[cfg(all(windows, not(target_vendor = "win7")))]
     {
         appcontainer_common::base_container_runner::BaseContainerRunner::is_process_security_environment_usable()
     }
-    #[cfg(not(windows))]
+    #[cfg(not(all(windows, not(target_vendor = "win7"))))]
     {
         false
     }
 }
 
-#[cfg(windows)]
+#[cfg(all(windows, not(target_vendor = "win7")))]
 pub use codex_windows_sandbox::GLOB_SCAN_PROGRAM;
 
 /// Resolve configured symbols and snapshot deny globs for policy inspection.
 /// Reuses MXC's resolution without adding native grants or protections.
-#[cfg(windows)]
+#[cfg(all(windows, not(target_vendor = "win7")))]
 pub fn prepare_file_system_policy(
     policy: codex_protocol::permissions::FileSystemSandboxPolicy,
     env: &HashMap<String, String>,
@@ -144,7 +144,7 @@ pub fn prepare_file_system_policy(
 
 /// Entry point dispatched before ordinary Codex CLI parsing.
 pub fn run_main() -> ! {
-    #[cfg(windows)]
+    #[cfg(all(windows, not(target_vendor = "win7")))]
     {
         match windows::run() {
             Ok(exit_code) => std::process::exit(exit_code),
@@ -154,13 +154,13 @@ pub fn run_main() -> ! {
             }
         }
     }
-    #[cfg(not(windows))]
+    #[cfg(not(all(windows, not(target_vendor = "win7"))))]
     {
         eprintln!("MXC sandbox execution requires Windows");
         std::process::exit(1);
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_vendor = "win7")))]
 #[path = "policy_tests.rs"]
 mod tests;

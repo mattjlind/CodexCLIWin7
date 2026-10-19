@@ -15,6 +15,7 @@ use windows_sys::Win32::Foundation::HANDLE;
 use windows_sys::Win32::Foundation::HLOCAL;
 use windows_sys::Win32::Foundation::LocalFree;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_ACTION_BLOCK;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_ACTION_PERMIT;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_ACTRL_MATCH_FILTER;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_BYTE_BLOB;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_CONDITION_VALUE0;
@@ -24,17 +25,26 @@ use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_MATCH_E
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_SECURITY_DESCRIPTOR_TYPE;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_UINT8;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_UINT16;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_UINT64;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_V4_ADDR_AND_MASK;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_V4_ADDR_MASK;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_V6_ADDR_AND_MASK;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_V6_ADDR_MASK;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_VALUE0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_ACTION0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_ACTION0_0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_CONDITION_ALE_USER_ID;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_CONDITION_IP_PROTOCOL;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_CONDITION_IP_REMOTE_ADDRESS;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_CONDITION_IP_REMOTE_PORT;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_DISPLAY_DATA0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_FILTER_CONDITION0;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_FILTER_ENUM_TEMPLATE0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_FILTER_FLAG_PERSISTENT;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_FILTER0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_FILTER0_0;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_LAYER_ALE_AUTH_CONNECT_V4;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_LAYER_ALE_AUTH_CONNECT_V6;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_PROVIDER_FLAG_PERSISTENT;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_PROVIDER0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_SESSION0;
@@ -43,7 +53,11 @@ use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWPM_SUBLAY
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmEngineClose0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmEngineOpen0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmFilterAdd0;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmFilterCreateEnumHandle0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmFilterDeleteByKey0;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmFilterDestroyEnumHandle0;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmFilterEnum0;
+use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmFreeMemory0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmProviderAdd0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmProviderDeleteByKey0;
 use windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FwpmSubLayerAdd0;
@@ -76,6 +90,19 @@ const SUBLAYER_DESCRIPTION: &str = "Persistent WFP sublayer for Codex Windows sa
 const PROVIDER_KEY: GUID = GUID::from_u128(0x2e31d31c_3948_4753_9117_e5d1a6496f41);
 const SUBLAYER_KEY: GUID = GUID::from_u128(0xe65054fd_4d32_4c7c_95ef_621f0cf6431a);
 
+const WIN7_FIREWALL_SUBLAYER_NAME: &str = "Codex Windows 7 Sandbox Network Policy";
+const WIN7_FIREWALL_SUBLAYER_DESCRIPTION: &str =
+    "Per-user outbound isolation for the Codex Windows 7 sandbox";
+const WIN7_FIREWALL_SUBLAYER_KEY: GUID = GUID::from_u128(0xa78f1e92_c70c_45ab_9944_82f49b0f8b6a);
+const WIN7_FIREWALL_BLOCK_V4_KEY: GUID = GUID::from_u128(0x5fa92983_8ee2_42df_b921_76f323f9b4e1);
+const WIN7_FIREWALL_BLOCK_V6_KEY: GUID = GUID::from_u128(0x0f4213aa_f94b_46d2_b637_e732ccb99cd4);
+const WIN7_FIREWALL_ALLOW_LOOPBACK_V4_KEY: GUID =
+    GUID::from_u128(0xca78ab6e_719e_4eed_a6ed_96b9d345d0bc);
+const WIN7_FIREWALL_ALLOW_LOOPBACK_V6_KEY: GUID =
+    GUID::from_u128(0xe12c0045_2593_48ef_a8d1_ddbb34164669);
+const WIN7_FIREWALL_BLOCK_WEIGHT: u64 = 0x1000;
+const WIN7_FIREWALL_PERMIT_WEIGHT: u64 = 0xf000;
+
 /// Installs the persistent Codex WFP filters for `account`.
 ///
 /// This is intended to run from the already-elevated setup helper. Callers
@@ -99,12 +126,99 @@ pub fn install_wfp_filters_for_account(account: &str) -> Result<usize> {
     Ok(installed_filter_count)
 }
 
+/// Installs the Windows 7 replacement for the per-user `INetFwRule3` rules.
+///
+/// Windows 7 cannot expose `LocalUserAuthorizedList`, so this expresses the
+/// same policy directly at the outbound ALE authorization layers. A low-weight
+/// per-user block covers all destinations; higher-weight permits retain either
+/// all loopback access or only TCP access to the configured proxy ports.
+#[cfg(target_vendor = "win7")]
+pub fn install_win7_firewall_filters_for_account(
+    account: &str,
+    proxy_ports: &[u16],
+    allow_local_binding: bool,
+) -> Result<usize> {
+    let engine = Engine::open(INFINITE)?;
+    let mut transaction = engine.begin_transaction()?;
+    ensure_win7_firewall_sublayer(engine.handle)?;
+    delete_win7_firewall_filters(engine.handle)?;
+
+    let user_condition = UserMatchCondition::for_account(account)?;
+    let mut installed = 0;
+    for (family, key) in [
+        (IpFamily::V4, WIN7_FIREWALL_BLOCK_V4_KEY),
+        (IpFamily::V6, WIN7_FIREWALL_BLOCK_V6_KEY),
+    ] {
+        add_win7_firewall_filter(
+            engine.handle,
+            key,
+            family,
+            FWP_ACTION_BLOCK,
+            WIN7_FIREWALL_BLOCK_WEIGHT,
+            None,
+            &user_condition,
+        )?;
+        installed += 1;
+    }
+
+    if allow_local_binding {
+        for (family, key) in [
+            (IpFamily::V4, WIN7_FIREWALL_ALLOW_LOOPBACK_V4_KEY),
+            (IpFamily::V6, WIN7_FIREWALL_ALLOW_LOOPBACK_V6_KEY),
+        ] {
+            add_win7_firewall_filter(
+                engine.handle,
+                key,
+                family,
+                FWP_ACTION_PERMIT,
+                WIN7_FIREWALL_PERMIT_WEIGHT,
+                None,
+                &user_condition,
+            )?;
+            installed += 1;
+        }
+    } else {
+        let mut ports = proxy_ports
+            .iter()
+            .copied()
+            .filter(|port| *port != 0)
+            .collect::<Vec<_>>();
+        ports.sort_unstable();
+        ports.dedup();
+        for port in ports {
+            for family in [IpFamily::V4, IpFamily::V6] {
+                add_win7_firewall_filter(
+                    engine.handle,
+                    win7_proxy_permit_key(family, port),
+                    family,
+                    FWP_ACTION_PERMIT,
+                    WIN7_FIREWALL_PERMIT_WEIGHT,
+                    Some(port),
+                    &user_condition,
+                )?;
+                installed += 1;
+            }
+        }
+    }
+
+    transaction.commit()?;
+    Ok(installed)
+}
+
 pub(crate) fn remove_wfp_filters() -> Result<()> {
     // Leave time for other cleanup if a WFP policy writer holds the transaction lock.
     let engine = Engine::open(/*transaction_wait_timeout_ms*/ 1_000)?;
     let mut transaction = engine.begin_transaction()?;
     for spec in FILTER_SPECS {
         delete_filter_if_present(engine.handle, &spec.key)?;
+    }
+    delete_win7_firewall_filters(engine.handle)?;
+    for (result, operation, missing) in [(
+        unsafe { FwpmSubLayerDeleteByKey0(engine.handle, &WIN7_FIREWALL_SUBLAYER_KEY) },
+        "FwpmSubLayerDeleteByKey0(Windows 7 firewall)",
+        FWP_E_SUBLAYER_NOT_FOUND as u32,
+    )] {
+        ensure_success_or(result, operation, &[missing, FWP_E_NOT_FOUND as u32])?;
     }
     for (result, operation, missing) in [
         (
@@ -250,6 +364,306 @@ impl Drop for UserMatchCondition {
             }
         }
     }
+}
+
+#[derive(Clone, Copy)]
+enum IpFamily {
+    V4,
+    V6,
+}
+
+fn ensure_win7_firewall_sublayer(engine: HANDLE) -> Result<()> {
+    let name = to_wide(OsStr::new(WIN7_FIREWALL_SUBLAYER_NAME));
+    let description = to_wide(OsStr::new(WIN7_FIREWALL_SUBLAYER_DESCRIPTION));
+    let sublayer = FWPM_SUBLAYER0 {
+        subLayerKey: WIN7_FIREWALL_SUBLAYER_KEY,
+        displayData: FWPM_DISPLAY_DATA0 {
+            name: name.as_ptr() as *mut _,
+            description: description.as_ptr() as *mut _,
+        },
+        flags: FWPM_SUBLAYER_FLAG_PERSISTENT,
+        providerKey: null_mut(),
+        providerData: empty_blob(),
+        weight: 0x8000,
+    };
+    let result = unsafe { FwpmSubLayerAdd0(engine, &sublayer, null_mut()) };
+    ensure_success_or(
+        result,
+        "FwpmSubLayerAdd0(Windows 7 firewall)",
+        &[FWP_E_ALREADY_EXISTS as u32],
+    )
+}
+
+#[cfg(target_vendor = "win7")]
+fn add_win7_firewall_filter(
+    engine: HANDLE,
+    key: GUID,
+    family: IpFamily,
+    action: u32,
+    mut weight: u64,
+    proxy_port: Option<u16>,
+    user_condition: &UserMatchCondition,
+) -> Result<()> {
+    let family_label = match family {
+        IpFamily::V4 => "IPv4",
+        IpFamily::V6 => "IPv6",
+    };
+    let purpose = if action == FWP_ACTION_BLOCK {
+        "block outbound"
+    } else if let Some(port) = proxy_port {
+        return add_win7_loopback_proxy_permit(engine, key, family, port, weight, user_condition);
+    } else {
+        "permit loopback"
+    };
+    let name = format!("codex_win7_firewall_{purpose}_{family_label}");
+    let description = format!("Codex Windows 7 sandbox: {purpose} for {family_label}");
+    let name_w = to_wide(OsStr::new(&name));
+    let description_w = to_wide(OsStr::new(&description));
+
+    let mut v4_loopback = FWP_V4_ADDR_AND_MASK {
+        addr: 0x7f00_0000,
+        mask: 0xff00_0000,
+    };
+    let mut v6_loopback = FWP_V6_ADDR_AND_MASK {
+        addr: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        prefixLength: 128,
+    };
+    let mut conditions = vec![user_filter_condition(user_condition)];
+    if action == FWP_ACTION_PERMIT {
+        conditions.push(loopback_filter_condition(
+            family,
+            &mut v4_loopback,
+            &mut v6_loopback,
+        ));
+    }
+
+    add_weighted_filter(
+        engine,
+        key,
+        match family {
+            IpFamily::V4 => FWPM_LAYER_ALE_AUTH_CONNECT_V4,
+            IpFamily::V6 => FWPM_LAYER_ALE_AUTH_CONNECT_V6,
+        },
+        action,
+        &mut weight,
+        &name_w,
+        &description_w,
+        &mut conditions,
+    )
+}
+
+#[cfg(target_vendor = "win7")]
+fn add_win7_loopback_proxy_permit(
+    engine: HANDLE,
+    key: GUID,
+    family: IpFamily,
+    port: u16,
+    mut weight: u64,
+    user_condition: &UserMatchCondition,
+) -> Result<()> {
+    let family_label = match family {
+        IpFamily::V4 => "IPv4",
+        IpFamily::V6 => "IPv6",
+    };
+    let name = format!("codex_win7_firewall_permit_proxy_{port}_{family_label}");
+    let description = format!(
+        "Codex Windows 7 sandbox: permit loopback TCP proxy port {port} for {family_label}"
+    );
+    let name_w = to_wide(OsStr::new(&name));
+    let description_w = to_wide(OsStr::new(&description));
+    let mut v4_loopback = FWP_V4_ADDR_AND_MASK {
+        addr: 0x7f00_0000,
+        mask: 0xff00_0000,
+    };
+    let mut v6_loopback = FWP_V6_ADDR_AND_MASK {
+        addr: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        prefixLength: 128,
+    };
+    let mut conditions = vec![
+        user_filter_condition(user_condition),
+        loopback_filter_condition(family, &mut v4_loopback, &mut v6_loopback),
+        FWPM_FILTER_CONDITION0 {
+            fieldKey: FWPM_CONDITION_IP_PROTOCOL,
+            matchType: FWP_MATCH_EQUAL,
+            conditionValue: FWP_CONDITION_VALUE0 {
+                r#type: FWP_UINT8,
+                Anonymous: FWP_CONDITION_VALUE0_0 { uint8: 6 },
+            },
+        },
+        FWPM_FILTER_CONDITION0 {
+            fieldKey: FWPM_CONDITION_IP_REMOTE_PORT,
+            matchType: FWP_MATCH_EQUAL,
+            conditionValue: FWP_CONDITION_VALUE0 {
+                r#type: FWP_UINT16,
+                Anonymous: FWP_CONDITION_VALUE0_0 { uint16: port },
+            },
+        },
+    ];
+    add_weighted_filter(
+        engine,
+        key,
+        match family {
+            IpFamily::V4 => FWPM_LAYER_ALE_AUTH_CONNECT_V4,
+            IpFamily::V6 => FWPM_LAYER_ALE_AUTH_CONNECT_V6,
+        },
+        FWP_ACTION_PERMIT,
+        &mut weight,
+        &name_w,
+        &description_w,
+        &mut conditions,
+    )
+}
+
+#[cfg(target_vendor = "win7")]
+fn add_weighted_filter(
+    engine: HANDLE,
+    key: GUID,
+    layer_key: GUID,
+    action: u32,
+    weight: &mut u64,
+    name: &[u16],
+    description: &[u16],
+    conditions: &mut [FWPM_FILTER_CONDITION0],
+) -> Result<()> {
+    let filter = FWPM_FILTER0 {
+        filterKey: key,
+        displayData: FWPM_DISPLAY_DATA0 {
+            name: name.as_ptr() as *mut _,
+            description: description.as_ptr() as *mut _,
+        },
+        flags: FWPM_FILTER_FLAG_PERSISTENT,
+        providerKey: null_mut(),
+        providerData: empty_blob(),
+        layerKey: layer_key,
+        subLayerKey: WIN7_FIREWALL_SUBLAYER_KEY,
+        weight: FWP_VALUE0 {
+            r#type: FWP_UINT64,
+            Anonymous:
+                windows_sys::Win32::NetworkManagement::WindowsFilteringPlatform::FWP_VALUE0_0 {
+                    uint64: weight,
+                },
+        },
+        numFilterConditions: conditions.len() as u32,
+        filterCondition: conditions.as_mut_ptr(),
+        action: FWPM_ACTION0 {
+            r#type: action,
+            Anonymous: FWPM_ACTION0_0 {
+                filterType: zero_guid(),
+            },
+        },
+        Anonymous: FWPM_FILTER0_0 { rawContext: 0 },
+        reserved: null_mut(),
+        filterId: 0,
+        effectiveWeight: empty_value(),
+    };
+    let result = unsafe { FwpmFilterAdd0(engine, &filter, null_mut(), null_mut()) };
+    ensure_success(result, "FwpmFilterAdd0(Windows 7 firewall)")
+}
+
+#[cfg(target_vendor = "win7")]
+fn user_filter_condition(user_condition: &UserMatchCondition) -> FWPM_FILTER_CONDITION0 {
+    FWPM_FILTER_CONDITION0 {
+        fieldKey: FWPM_CONDITION_ALE_USER_ID,
+        matchType: FWP_MATCH_EQUAL,
+        conditionValue: FWP_CONDITION_VALUE0 {
+            r#type: FWP_SECURITY_DESCRIPTOR_TYPE,
+            Anonymous: FWP_CONDITION_VALUE0_0 {
+                sd: &user_condition.blob as *const _ as *mut _,
+            },
+        },
+    }
+}
+
+#[cfg(target_vendor = "win7")]
+fn loopback_filter_condition(
+    family: IpFamily,
+    v4_loopback: &mut FWP_V4_ADDR_AND_MASK,
+    v6_loopback: &mut FWP_V6_ADDR_AND_MASK,
+) -> FWPM_FILTER_CONDITION0 {
+    let condition_value = match family {
+        IpFamily::V4 => FWP_CONDITION_VALUE0 {
+            r#type: FWP_V4_ADDR_MASK,
+            Anonymous: FWP_CONDITION_VALUE0_0 {
+                v4AddrMask: v4_loopback,
+            },
+        },
+        IpFamily::V6 => FWP_CONDITION_VALUE0 {
+            r#type: FWP_V6_ADDR_MASK,
+            Anonymous: FWP_CONDITION_VALUE0_0 {
+                v6AddrMask: v6_loopback,
+            },
+        },
+    };
+    FWPM_FILTER_CONDITION0 {
+        fieldKey: FWPM_CONDITION_IP_REMOTE_ADDRESS,
+        matchType: FWP_MATCH_EQUAL,
+        conditionValue: condition_value,
+    }
+}
+
+#[cfg(target_vendor = "win7")]
+fn win7_proxy_permit_key(family: IpFamily, port: u16) -> GUID {
+    GUID {
+        data1: 0x843e9a31,
+        data2: match family {
+            IpFamily::V4 => 4,
+            IpFamily::V6 => 6,
+        },
+        data3: port,
+        data4: [0x9d, 0xf1, 0x36, 0xc4, 0xa8, 0x7b, 0x10, 0x55],
+    }
+}
+
+fn delete_win7_firewall_filters(engine: HANDLE) -> Result<()> {
+    for layer_key in [
+        FWPM_LAYER_ALE_AUTH_CONNECT_V4,
+        FWPM_LAYER_ALE_AUTH_CONNECT_V6,
+    ] {
+        let template = FWPM_FILTER_ENUM_TEMPLATE0 {
+            providerKey: null_mut(),
+            layerKey: layer_key,
+            actionMask: u32::MAX,
+            ..unsafe { zeroed() }
+        };
+        let mut enum_handle = HANDLE::default();
+        let result = unsafe { FwpmFilterCreateEnumHandle0(engine, &template, &mut enum_handle) };
+        ensure_success(result, "FwpmFilterCreateEnumHandle0(Windows 7 firewall)")?;
+
+        let enumeration = (|| -> Result<Vec<GUID>> {
+            let mut keys = Vec::new();
+            loop {
+                let mut entries = null_mut();
+                let mut returned = 0;
+                let result = unsafe {
+                    FwpmFilterEnum0(engine, enum_handle, 256, &mut entries, &mut returned)
+                };
+                ensure_success(result, "FwpmFilterEnum0(Windows 7 firewall)")?;
+                if returned == 0 {
+                    break;
+                }
+                let filters = unsafe { std::slice::from_raw_parts(entries, returned as usize) };
+                for filter in filters.iter().copied().filter(|filter| !filter.is_null()) {
+                    if unsafe { guid_eq(&(*filter).subLayerKey, &WIN7_FIREWALL_SUBLAYER_KEY) } {
+                        keys.push(unsafe { (*filter).filterKey });
+                    }
+                }
+                unsafe {
+                    FwpmFreeMemory0(&mut entries as *mut _ as *mut *mut _);
+                }
+            }
+            Ok(keys)
+        })();
+        let destroy_result = unsafe { FwpmFilterDestroyEnumHandle0(engine, enum_handle) };
+        let keys = enumeration?;
+        ensure_success(
+            destroy_result,
+            "FwpmFilterDestroyEnumHandle0(Windows 7 firewall)",
+        )?;
+        for key in keys {
+            delete_filter_if_present(engine, &key)?;
+        }
+    }
+    Ok(())
 }
 
 /// Ensures the persistent Codex WFP provider exists.
@@ -418,9 +832,24 @@ fn zero_guid() -> GUID {
     GUID::from_u128(0)
 }
 
+fn guid_eq(left: &GUID, right: &GUID) -> bool {
+    left.data1 == right.data1
+        && left.data2 == right.data2
+        && left.data3 == right.data3
+        && left.data4 == right.data4
+}
+
 #[cfg(test)]
 mod tests {
     use super::FILTER_SPECS;
+    #[cfg(target_vendor = "win7")]
+    use super::IpFamily;
+    #[cfg(target_vendor = "win7")]
+    use super::WIN7_FIREWALL_BLOCK_WEIGHT;
+    #[cfg(target_vendor = "win7")]
+    use super::WIN7_FIREWALL_PERMIT_WEIGHT;
+    #[cfg(target_vendor = "win7")]
+    use super::win7_proxy_permit_key;
     use pretty_assertions::assert_eq;
     use std::collections::BTreeSet;
 
@@ -447,5 +876,26 @@ mod tests {
             .map(|spec| spec.name)
             .collect::<BTreeSet<_>>();
         assert_eq!(names.len(), FILTER_SPECS.len());
+    }
+
+    #[cfg(target_vendor = "win7")]
+    #[test]
+    fn win7_proxy_filter_keys_are_unique_per_family_and_port() {
+        let keys = [
+            win7_proxy_permit_key(IpFamily::V4, 8080),
+            win7_proxy_permit_key(IpFamily::V6, 8080),
+            win7_proxy_permit_key(IpFamily::V4, 8081),
+            win7_proxy_permit_key(IpFamily::V6, 8081),
+        ]
+        .map(|key| (key.data1, key.data2, key.data3, key.data4))
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+        assert_eq!(keys.len(), 4);
+    }
+
+    #[cfg(target_vendor = "win7")]
+    #[test]
+    fn win7_loopback_permits_outrank_outbound_blocks() {
+        assert!(WIN7_FIREWALL_PERMIT_WEIGHT > WIN7_FIREWALL_BLOCK_WEIGHT);
     }
 }

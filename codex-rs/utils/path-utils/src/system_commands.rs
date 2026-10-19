@@ -10,6 +10,14 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::path::PathBuf;
 
+// windows-sys 0.61 names combase.dll as the provider. On Windows 7 this API
+// is provided by ole32.dll, so bind it there for the dedicated Win7 target.
+#[cfg(all(windows, target_vendor = "win7"))]
+#[link(name = "ole32")]
+unsafe extern "system" {
+    fn CoTaskMemFree(pv: *const core::ffi::c_void);
+}
+
 /// Finds an installed helper without consulting PATH, PATHEXT, or the working directory.
 pub fn system_executable(name: &str) -> Option<PathBuf> {
     executable_in_directories(name, &system_directories())
@@ -118,6 +126,7 @@ fn system_directories() -> Vec<PathBuf> {
 #[cfg(windows)]
 fn installation_roots() -> Vec<PathBuf> {
     use std::os::windows::ffi::OsStringExt;
+    #[cfg(not(target_vendor = "win7"))]
     use windows_sys::Win32::System::Com::CoTaskMemFree;
     use windows_sys::Win32::UI::Shell::FOLDERID_ProgramFiles;
     use windows_sys::Win32::UI::Shell::FOLDERID_ProgramFilesX86;

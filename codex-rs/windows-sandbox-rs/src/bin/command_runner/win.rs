@@ -50,6 +50,7 @@ use codex_windows_sandbox::to_wide;
 use codex_windows_sandbox::token_mode_for_permission_profile;
 use codex_windows_sandbox::write_frame;
 use std::ffi::OsStr;
+use std::ffi::c_void;
 use std::fs::File;
 use std::os::windows::io::AsHandle;
 use std::os::windows::io::AsRawHandle;
@@ -71,7 +72,8 @@ use windows_sys::Win32::Storage::FileSystem::FILE_GENERIC_WRITE;
 use windows_sys::Win32::Storage::FileSystem::OPEN_EXISTING;
 use windows_sys::Win32::System::Console::COORD;
 use windows_sys::Win32::System::Console::HPCON;
-use windows_sys::Win32::System::Console::ResizePseudoConsole;
+use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows_sys::Win32::System::LibraryLoader::GetProcAddress;
 use windows_sys::Win32::System::Threading::GetExitCodeProcess;
 use windows_sys::Win32::System::Threading::GetProcessId;
 use windows_sys::Win32::System::Threading::INFINITE;
@@ -84,6 +86,32 @@ use windows_sys::Win32::System::Threading::WaitForSingleObject;
 const READ_ACL_MUTEX_NAME: &str = "Local\\CodexSandboxReadAcl";
 const TERMINATION_WAIT_MS: u32 = 5_000;
 const WAIT_TIMEOUT: u32 = 0x0000_0102;
+
+type ResizePseudoConsoleFn = unsafe extern "system" fn(HPCON, COORD) -> i32;
+
+fn resize_pseudo_console(hpc: HPCON, size: COORD) -> Option<i32> {
+    const KERNEL32: &[u16] = &[
+        'k' as u16, 'e' as u16, 'r' as u16, 'n' as u16, 'e' as u16, 'l' as u16, '3' as u16,
+        '2' as u16, '.' as u16, 'd' as u16, 'l' as u16, 'l' as u16, 0,
+    ];
+
+    const NAME: &[u8] = b"ResizePseudoConsole\0";
+
+    unsafe {
+        let module = GetModuleHandleW(KERNEL32.as_ptr());
+        if module.is_null() {
+            return None;
+        }
+
+        let proc = GetProcAddress(module, NAME.as_ptr());
+        let proc = proc?;
+
+        let func: ResizePseudoConsoleFn =
+            std::mem::transmute::<*const c_void, ResizePseudoConsoleFn>(proc as *const c_void);
+
+        Some(func(hpc, size))
+    }
+}
 
 struct IpcSpawnedProcess {
     log_dir: PathBuf,
@@ -519,15 +547,13 @@ fn spawn_input_loop(
                     if let Ok(guard) = hpc_handle.lock()
                         && let Some(hpc) = guard.as_ref()
                     {
-                        unsafe {
-                            let _ = ResizePseudoConsole(
-                                *hpc,
-                                COORD {
-                                    X: cols as i16,
-                                    Y: rows as i16,
-                                },
-                            );
-                        }
+                        let _ = resize_pseudo_console(
+                            *hpc,
+                            COORD {
+                                X: cols as i16,
+                                Y: rows as i16,
+                            },
+                        );
                     }
                 }
                 Message::Terminate { .. } => {

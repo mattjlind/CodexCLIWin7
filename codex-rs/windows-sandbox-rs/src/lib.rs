@@ -505,6 +505,8 @@ pub use uninstall_windows::prepare_packaged_windows_sandbox_cleanup;
 pub use uninstall_windows::prepare_packaged_windows_sandbox_cleanup_with_retained_tokens;
 #[cfg(target_os = "windows")]
 pub use wfp::install_wfp_filters_for_account;
+#[cfg(all(target_os = "windows", target_vendor = "win7"))]
+pub use wfp::install_win7_firewall_filters_for_account;
 #[cfg(target_os = "windows")]
 pub use wfp_setup::install_wfp_filters;
 #[cfg(target_os = "windows")]

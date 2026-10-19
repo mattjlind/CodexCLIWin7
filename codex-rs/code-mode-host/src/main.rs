@@ -14,6 +14,11 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+#[cfg(all(windows, target_vendor = "win7", target_arch = "x86_64"))]
+mod win7_rand;
+#[cfg(all(windows, target_vendor = "win7", target_arch = "x86_64"))]
+mod win7_time;
+
 const OTEL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 5);
 
 #[derive(Debug, Parser)]

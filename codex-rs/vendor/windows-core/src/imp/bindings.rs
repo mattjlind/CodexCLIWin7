@@ -1,6 +1,26 @@
+#[cfg(not(target_vendor = "win7"))]
 windows_link::link!("combase.dll" "system" fn CoIncrementMTAUsage(pcookie : *mut CO_MTA_USAGE_COOKIE) -> HRESULT);
+
+// CoIncrementMTAUsage was introduced after Windows 7. WinRT activation is
+// disabled for that target, but keep this internal fallback so merely linking
+// windows-core cannot add an unavailable combase.dll import.
+#[cfg(target_vendor = "win7")]
+pub(crate) unsafe fn CoIncrementMTAUsage(pcookie: *mut CO_MTA_USAGE_COOKIE) -> HRESULT {
+    if !pcookie.is_null() {
+        unsafe { *pcookie = core::ptr::null_mut() };
+    }
+    0x8000_4001_u32 as i32 // E_NOTIMPL
+}
+
+#[cfg(not(target_vendor = "win7"))]
 windows_link::link!("combase.dll" "system" fn CoTaskMemAlloc(cb : usize) -> *mut core::ffi::c_void);
+#[cfg(target_vendor = "win7")]
+windows_link::link!("ole32.dll" "system" fn CoTaskMemAlloc(cb : usize) -> *mut core::ffi::c_void);
+
+#[cfg(not(target_vendor = "win7"))]
 windows_link::link!("combase.dll" "system" fn CoTaskMemFree(pv : *const core::ffi::c_void));
+#[cfg(target_vendor = "win7")]
+windows_link::link!("ole32.dll" "system" fn CoTaskMemFree(pv : *const core::ffi::c_void));
 windows_link::link!("kernel32.dll" "system" fn EncodePointer(ptr : *const core::ffi::c_void) -> *mut core::ffi::c_void);
 windows_link::link!("kernel32.dll" "system" fn FreeLibrary(hlibmodule : HMODULE) -> BOOL);
 windows_link::link!("kernel32.dll" "system" fn GetProcAddress(hmodule : HMODULE, lpprocname : PCSTR) -> FARPROC);

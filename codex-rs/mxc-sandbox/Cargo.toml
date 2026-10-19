@@ -24,9 +24,11 @@ codex-windows-sandbox = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+
+[target.'cfg(not(target_vendor = "win7"))'.dependencies]
 wxc_common = { workspace = true }
 
-[target.'cfg(windows)'.dependencies]
+[target.'cfg(all(windows, not(target_vendor = "win7")))'.dependencies]
 appcontainer_common = { workspace = true }
 learning_mode_windows = { workspace = true }
 # 1.2.4 imports OneCore_apiset, which the GNU Windows toolchain does not ship.

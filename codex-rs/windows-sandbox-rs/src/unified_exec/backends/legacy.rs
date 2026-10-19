@@ -32,6 +32,7 @@ use std::os::windows::io::AsRawHandle;
 use std::os::windows::io::BorrowedHandle;
 use std::os::windows::io::FromRawHandle;
 use std::os::windows::io::OwnedHandle;
+use std::ffi::c_void;
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
@@ -45,7 +46,8 @@ use windows_sys::Win32::Foundation::HANDLE;
 use windows_sys::Win32::Storage::FileSystem::WriteFile;
 use windows_sys::Win32::System::Console::COORD;
 use windows_sys::Win32::System::Console::HPCON;
-use windows_sys::Win32::System::Console::ResizePseudoConsole;
+use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows_sys::Win32::System::LibraryLoader::GetProcAddress;
 use windows_sys::Win32::System::Threading::GetExitCodeProcess;
 use windows_sys::Win32::System::Threading::INFINITE;
 use windows_sys::Win32::System::Threading::PROCESS_INFORMATION;
@@ -63,6 +65,32 @@ unsafe impl Send for NonOwningProcessHandle {}
 impl NonOwningProcessHandle {
     fn raw(&self) -> HANDLE {
         self.0
+    }
+}
+
+type ResizePseudoConsoleFn = unsafe extern "system" fn(HPCON, COORD) -> i32;
+
+fn resize_pseudo_console(hpc: HPCON, size: COORD) -> Option<i32> {
+    const KERNEL32: &[u16] = &[
+        'k' as u16, 'e' as u16, 'r' as u16, 'n' as u16, 'e' as u16, 'l' as u16, '3' as u16,
+        '2' as u16, '.' as u16, 'd' as u16, 'l' as u16, 'l' as u16, 0,
+    ];
+
+    const NAME: &[u8] = b"ResizePseudoConsole\0";
+
+    unsafe {
+        let module = GetModuleHandleW(KERNEL32.as_ptr());
+        if module.is_null() {
+            return None;
+        }
+
+        let proc = GetProcAddress(module, NAME.as_ptr());
+        let proc = proc?;
+
+        let func: ResizePseudoConsoleFn =
+            std::mem::transmute::<*const c_void, ResizePseudoConsoleFn>(proc as *const c_void);
+
+        Some(func(hpc, size))
     }
 }
 
@@ -310,21 +338,22 @@ fn resize_conpty_handle(hpc: &Arc<StdMutex<Option<HPCON>>>, size: TerminalSize) 
         .as_ref()
         .copied()
         .ok_or_else(|| anyhow::anyhow!("process is not attached to a PTY"))?;
-    let result = unsafe {
-        ResizePseudoConsole(
-            hpc,
-            COORD {
-                X: size.cols as i16,
-                Y: size.rows as i16,
-            },
-        )
-    };
-    if result == 0 {
-        Ok(())
-    } else {
-        Err(anyhow::anyhow!(
+    let result = resize_pseudo_console(
+        hpc,
+        COORD {
+            X: size.cols as i16,
+            Y: size.rows as i16,
+        },
+    );
+
+    match result {
+        Some(0) => Ok(()),
+        Some(result) => Err(anyhow::anyhow!(
             "failed to resize console: HRESULT {result}"
-        ))
+        )),
+        None => Err(anyhow::anyhow!(
+            "ResizePseudoConsole is unavailable on this version of Windows"
+        )),
     }
 }
 

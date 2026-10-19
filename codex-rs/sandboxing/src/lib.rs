@@ -12,7 +12,7 @@ mod spawn;
 mod terminal_queries;
 mod violation;
 mod windows;
-#[cfg(windows)]
+#[cfg(all(windows, not(target_vendor = "win7")))]
 mod windows_mxc;
 
 #[cfg(target_os = "linux")]

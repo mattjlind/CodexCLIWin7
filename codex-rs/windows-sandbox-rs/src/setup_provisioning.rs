@@ -2,6 +2,7 @@
 //! Full and read-ACL setup remain helper entrypoints; only they may launch a read-ACL child.
 //! Command-line account provisioning cannot enter the service's admitted Core path.
 
+#[cfg(not(target_vendor = "win7"))]
 mod firewall;
 mod service;
 pub use service::provision_sandbox_in_process;
@@ -48,6 +49,8 @@ use anyhow::Result;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use codex_otel::StatsigMetricsSettings;
+#[cfg(target_vendor = "win7")]
+use crate::install_win7_firewall_filters_for_account;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -793,32 +796,43 @@ fn configure_offline_sandbox_network(
     offline_sid_str: &str,
     log: &mut dyn Write,
 ) -> Result<()> {
-    let proxy_allowlist_result = firewall::ensure_offline_proxy_allowlist(
-        offline_sid_str,
-        &payload.proxy_ports,
-        payload.allow_local_binding,
-        log,
-    );
-    if let Err(err) = proxy_allowlist_result {
-        if extract_setup_failure(&err).is_some() {
-            return Err(err);
-        }
-        return Err(anyhow::Error::new(SetupFailure::new(
-            SetupErrorCode::HelperFirewallRuleCreateOrAddFailed,
-            format!("ensure offline proxy allowlist failed: {err}"),
-        )));
+    #[cfg(target_vendor = "win7")]
+    {
+        let _ = offline_sid_str;
+        let installed = install_win7_firewall_filters_for_account(
+            &payload.offline_username,
+            &payload.proxy_ports,
+            payload.allow_local_binding,
+        )
+        .map_err(|err| {
+            anyhow::Error::new(SetupFailure::new(
+                SetupErrorCode::HelperFirewallRuleCreateOrAddFailed,
+                format!("install Windows 7 WFP network policy failed: {err}"),
+            ))
+        })?;
+        log_line(
+            log,
+            &format!(
+                "Windows 7 WFP network policy configured account={} filters={installed} proxy_ports={:?} allow_local_binding={}",
+                payload.offline_username, payload.proxy_ports, payload.allow_local_binding
+            ),
+        )?;
+        Ok(())
     }
-    let firewall_result = firewall::ensure_offline_network_blocks(offline_sid_str, log);
-    if let Err(err) = firewall_result {
-        if extract_setup_failure(&err).is_some() {
-            return Err(err);
+    #[cfg(not(target_vendor = "win7"))]
+    {
+        let firewall_result = firewall::ensure_offline_network_blocks(offline_sid_str, log);
+        if let Err(err) = firewall_result {
+            if extract_setup_failure(&err).is_some() {
+                return Err(err);
+            }
+            return Err(anyhow::Error::new(SetupFailure::new(
+                SetupErrorCode::HelperFirewallRuleCreateOrAddFailed,
+                format!("ensure offline network blocks failed: {err}"),
+            )));
         }
-        return Err(anyhow::Error::new(SetupFailure::new(
-            SetupErrorCode::HelperFirewallRuleCreateOrAddFailed,
-            format!("ensure offline network blocks failed: {err}"),
-        )));
+        Ok(())
     }
-    Ok(())
 }
 
 fn lock_persistent_sandbox_dirs(payload: &Payload, sandbox_group_sid: &[u8]) -> Result<()> {
