@@ -16,10 +16,12 @@ use windows_sys::Win32::Foundation::ERROR_INSUFFICIENT_BUFFER;
 use windows_sys::Win32::Foundation::ERROR_SUCCESS;
 use windows_sys::Win32::Foundation::HANDLE;
 use windows_sys::Win32::NetworkManagement::NetManagement::UF_ACCOUNTDISABLE;
+#[cfg(not(target_vendor = "win7"))]
 use windows_sys::Win32::Storage::Packaging::Appx::GetPackageFullName;
 use windows_sys::Win32::System::Threading::GetCurrentProcess;
 use windows_sys::Win32::System::Threading::QueryFullProcessImageNameW;
 
+#[cfg(not(target_vendor = "win7"))]
 #[link(name = "kernel32")]
 unsafe extern "system" {
     fn GetStagedPackagePathByFullName(
@@ -46,10 +48,20 @@ fn current_package_full_name() -> Result<Option<String>> {
 }
 
 fn process_package_name(process: HANDLE) -> Result<Option<String>> {
-    query_package_name(
-        |length, buffer| unsafe { GetPackageFullName(process, length, buffer) },
-        /*max_length*/ 32768,
-    )
+    // Package identity was introduced after Windows 7. Reporting no identity
+    // preserves the legacy path and cannot authorize a registered runner.
+    #[cfg(target_vendor = "win7")]
+    {
+        let _ = process;
+        Ok(None)
+    }
+    #[cfg(not(target_vendor = "win7"))]
+    {
+        query_package_name(
+            |length, buffer| unsafe { GetPackageFullName(process, length, buffer) },
+            /*max_length*/ 32768,
+        )
+    }
 }
 
 pub(crate) fn query_package_name(
@@ -89,21 +101,30 @@ pub(crate) fn current_process_has_package_identity() -> Result<bool> {
 }
 
 fn staged_package_root(name: &[u16]) -> Result<PathBuf> {
-    let mut staged = vec![0u16; 32768];
-    let mut length = staged.len() as u32;
-    let status =
-        unsafe { GetStagedPackagePathByFullName(name.as_ptr(), &mut length, staged.as_mut_ptr()) };
-    ensure!(
-        status == 0 && length > 1 && length as usize <= staged.len(),
-        "registered Core staged package query failed: {status}"
-    );
-    let staged = &staged[..length as usize];
-    ensure!(
-        staged.last() == Some(&0) && !staged[..staged.len() - 1].contains(&0),
-        "invalid registered Core staged package path"
-    );
-    dunce::canonicalize(OsString::from_wide(&staged[..staged.len() - 1]))
-        .context("resolve OS-staged package root")
+    #[cfg(target_vendor = "win7")]
+    {
+        let _ = name;
+        bail!("registered Core packages are unavailable on Windows 7")
+    }
+    #[cfg(not(target_vendor = "win7"))]
+    {
+        let mut staged = vec![0u16; 32768];
+        let mut length = staged.len() as u32;
+        let status = unsafe {
+            GetStagedPackagePathByFullName(name.as_ptr(), &mut length, staged.as_mut_ptr())
+        };
+        ensure!(
+            status == 0 && length > 1 && length as usize <= staged.len(),
+            "registered Core staged package query failed: {status}"
+        );
+        let staged = &staged[..length as usize];
+        ensure!(
+            staged.last() == Some(&0) && !staged[..staged.len() - 1].contains(&0),
+            "invalid registered Core staged package path"
+        );
+        dunce::canonicalize(OsString::from_wide(&staged[..staged.len() - 1]))
+            .context("resolve OS-staged package root")
+    }
 }
 
 pub(crate) fn verify_registered_core_runner(process: HANDLE, expected_runner: &Path) -> Result<()> {

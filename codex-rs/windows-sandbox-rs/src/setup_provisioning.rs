@@ -22,6 +22,8 @@ use crate::ensure_allow_write_aces;
 use crate::extract_setup_failure;
 use crate::hide_newly_created_users;
 use crate::install_wfp_filters;
+#[cfg(target_vendor = "win7")]
+use crate::install_win7_firewall_filters_for_account;
 use crate::local_user_flags;
 use crate::log_note;
 use crate::log_writer;
@@ -49,8 +51,6 @@ use anyhow::Result;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use codex_otel::StatsigMetricsSettings;
-#[cfg(target_vendor = "win7")]
-use crate::install_win7_firewall_filters_for_account;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashSet;

@@ -213,11 +213,12 @@ pub(crate) fn remove_wfp_filters() -> Result<()> {
         delete_filter_if_present(engine.handle, &spec.key)?;
     }
     delete_win7_firewall_filters(engine.handle)?;
-    for (result, operation, missing) in [(
-        unsafe { FwpmSubLayerDeleteByKey0(engine.handle, &WIN7_FIREWALL_SUBLAYER_KEY) },
-        "FwpmSubLayerDeleteByKey0(Windows 7 firewall)",
-        FWP_E_SUBLAYER_NOT_FOUND as u32,
-    )] {
+    {
+        let (result, operation, missing) = (
+            unsafe { FwpmSubLayerDeleteByKey0(engine.handle, &WIN7_FIREWALL_SUBLAYER_KEY) },
+            "FwpmSubLayerDeleteByKey0(Windows 7 firewall)",
+            FWP_E_SUBLAYER_NOT_FOUND as u32,
+        );
         ensure_success_or(result, operation, &[missing, FWP_E_NOT_FOUND as u32])?;
     }
     for (result, operation, missing) in [
