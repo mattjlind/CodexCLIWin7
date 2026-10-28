@@ -13,7 +13,9 @@ provide the normal interactive terminal UI or the usual `codex exec` and
 
 ## Files to install
 
-Use a short, permanent folder such as `C:\Tools\CodexWin7`. Keep these files
+Use a short, permanent folder such as `C:\Tools\CodexWin7`or override the files in C:\Users\<username>\.vscode\extensions\openai.chatgpt-<version>-win32-x64\bin\windows-x86_64, C:\Users\<username>\.vscode\extensions\openai.chatgpt-<version>-win32-x64\bin\windows-x86_64\codex-path, and C:\Users\<username>\.vscode\extensions\openai.chatgpt-<version>-win32-x64\bin\windows-x86_64\codex-resources if using the VSCode extension. 
+
+Keep these files
 together:
 
 ```text
@@ -158,18 +160,18 @@ Its August 2026 update reports that resource replacement also works with
 **VSCode 1.128.1**:
 
 1. Download and extract the release's Windows x64 Code - OSS archive into a
-   new folder, such as `C:\Tools\VSCodeWin7`, keeping its patched runtime.
+   new folder, such as `C:\Users\<username>\AppData\Local\Programs\Microsoft VS Code`, keeping its patched runtime.
 2. Download Microsoft's **Windows x64 ZIP of VSCode 1.128.1**, rather than the
    current release or installer. Extract it separately.
 3. Close the editor. Back up the Code - OSS folder's existing `resources`
    directory, then replace it with `resources` from the Microsoft 1.128.1 ZIP.
    Keep the patched executable and DLLs.
-4. Launch the executable in `C:\Tools\VSCodeWin7`, then verify **Help > About**
+4. Launch the executable in `C:\Users\<username>\AppData\Local\Programs\Microsoft VS Code`, then verify **Help > About**
    reports 1.128.1, and open a project folder.
 
 The project also publishes
 [1.139.0](https://github.com/e3kskoy7wqk/vscode-for-windows-7/releases/tag/1.139.0).
-The maintainer has not tested that newer option; these instructions target
+This has not been tested with that newer option; these instructions target
 1.128.1.
 
 This is a community compatibility method. Microsoft's last officially supported
@@ -221,7 +223,7 @@ editor and extension. Merge settings into your existing JSON object.
 
    ```json
    {
-     "chatgpt.cliExecutable": "C:\\Tools\\CodexWin7\\codex.exe"
+     "chatgpt.cliExecutable": "C:\\Users\\<username>\\.vscode\\extensions\\openai.chatgpt-<version>-win32-x64\\bin\\windows-x86_64\\codex.exe"
    }
    ```
 
